@@ -1,0 +1,63 @@
+package com.java8_lambdas.chap06_data_parallelism.examples;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+/**
+ * Created by sofia on 12/24/16.
+ */
+public class WordCounting {
+
+    private static final Pattern SPACE = Pattern.compile("\\s+");
+    private static final Pattern USERNAME = Pattern.compile("\\s+<username>(.*?)</username>");
+
+    public void countWords(InputStream stream) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+            Map<String, Long> counts = reader
+                    .lines()
+                    .flatMap(SPACE::splitAsStream)
+                    .map(String::trim)
+                    .filter(word -> !word.isEmpty())
+                    .collect(Collectors.groupingBy(word -> word, Collectors.counting()));
+
+            counts.forEach((word, count) -> System.out.println(word+"->"+count));
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void countUsers(InputStream stream) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+            Map<String, Long> counts = reader
+                    .lines()
+                    .parallel()
+                    .filter(line -> line.contains("<username>"))
+                    .map(line -> {
+                        Matcher matcher = USERNAME.matcher(line);
+                        matcher.find();
+                        return matcher.group(1);
+                    })
+                    .collect(Collectors.groupingBy(word -> word, Collectors.counting()));
+
+            counts.forEach((word, count) -> System.out.println(word+"->"+count));
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public static void main(String... args) {
+        InputStream input = WordCounting.class.getResourceAsStream("test.txt");
+        new WordCounting().countWords(input);
+//        new WordCounting().countUsers(input);
+    }
+
+}
